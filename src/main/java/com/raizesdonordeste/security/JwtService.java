@@ -28,4 +28,16 @@ public class JwtService {
                 .getPayload()
                 .getSubject();
     }
+
+    public boolean isTokenValido(String token) {
+        try {
+            Jwts.parser()
+                    .verifyWith(Keys.hmacShaKeyFor(SECRET.getBytes()))
+                    .build()
+                    .parseSignedClaims(token);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 }
