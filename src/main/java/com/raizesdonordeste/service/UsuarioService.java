@@ -3,6 +3,7 @@ package com.raizesdonordeste.service;
 import com.raizesdonordeste.dto.UsuarioDTO;
 import com.raizesdonordeste.model.entity.Usuario;
 import com.raizesdonordeste.repository.UsuarioRepository;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -12,16 +13,18 @@ import java.util.List;
 public class UsuarioService {
 
     private final UsuarioRepository repository;
+    private final PasswordEncoder encoder;
 
-    public UsuarioService(UsuarioRepository repository) {
+    public UsuarioService(UsuarioRepository repository, PasswordEncoder encoder) {
         this.repository = repository;
+        this.encoder = encoder;
     }
 
     public Usuario criar(UsuarioDTO dto) {
         Usuario usuario = Usuario.builder()
                 .nome(dto.getNome())
                 .email(dto.getEmail())
-                .senha(dto.getSenha())
+                .senha(encoder.encode(dto.getSenha()))
                 .perfil(dto.getPerfil())
                 .saldoPontos(0)
                 .dataConsentimentoLGPD(LocalDateTime.now())

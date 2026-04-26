@@ -43,9 +43,4 @@ public class UsuarioController {
         service.deletar(id);
         return ResponseEntity.noContent().build();
     }
-
-    @GetMapping("/teste")
-    public String teste() {
-        return "ok";
-    }
 }
