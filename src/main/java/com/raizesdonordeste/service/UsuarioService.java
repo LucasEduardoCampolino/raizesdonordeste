@@ -1,6 +1,7 @@
 package com.raizesdonordeste.service;
 
 import com.raizesdonordeste.dto.UsuarioDTO;
+import com.raizesdonordeste.dto.UsuarioResponseDTO;
 import com.raizesdonordeste.model.entity.Usuario;
 import com.raizesdonordeste.repository.UsuarioRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -54,5 +55,15 @@ public class UsuarioService {
 
     public void deletar(Long id) {
         repository.deleteById(id);
+    }
+
+    public UsuarioResponseDTO toDTO(Usuario u) {
+        return new UsuarioResponseDTO(
+                u.getId(),
+                u.getNome(),
+                u.getEmail(),
+                u.getSaldoPontos(),
+                u.getPerfil()
+        );
     }
 }

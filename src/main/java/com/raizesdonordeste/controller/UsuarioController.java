@@ -1,6 +1,7 @@
 package com.raizesdonordeste.controller;
 
 import com.raizesdonordeste.dto.UsuarioDTO;
+import com.raizesdonordeste.dto.UsuarioResponseDTO;
 import com.raizesdonordeste.model.entity.Usuario;
 import com.raizesdonordeste.service.UsuarioService;
 import org.springframework.http.ResponseEntity;
@@ -24,8 +25,10 @@ public class UsuarioController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Usuario>> listar() {
-        return ResponseEntity.ok(service.listarTodos());
+    public ResponseEntity<List<UsuarioResponseDTO>> listar() {
+        return ResponseEntity.ok(
+                service.listarTodos().stream().map(service::toDTO).toList()
+        );
     }
 
     @GetMapping("/{id}")
