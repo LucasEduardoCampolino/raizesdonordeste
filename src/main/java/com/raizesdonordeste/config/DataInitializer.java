@@ -32,8 +32,6 @@ public class DataInitializer implements CommandLineRunner {
                     .build();
 
             repository.save(admin);
-
-            System.out.println("✅ ADMIN criado");
         }
     }
 }
