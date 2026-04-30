@@ -23,6 +23,7 @@ public class PedidoService {
     private final EstoqueService estoqueService;
     private final PagamentoGateway pagamentoGateway;
     private final FidelidadeService fidelidadeService;
+    private final PromocaoService promocaoService;
 
     public PedidoService(
             PedidoRepository repository,
@@ -31,7 +32,8 @@ public class PedidoService {
             ProdutoRepository produtoRepository,
             EstoqueService estoqueService,
             PagamentoGateway pagamentoGateway,
-            FidelidadeService fidelidadeService
+            FidelidadeService fidelidadeService,
+            PromocaoService promocaoService
     ) {
         this.repository = repository;
         this.usuarioRepository = usuarioRepository;
@@ -40,6 +42,7 @@ public class PedidoService {
         this.estoqueService = estoqueService;
         this.pagamentoGateway = pagamentoGateway;
         this.fidelidadeService = fidelidadeService;
+        this.promocaoService = promocaoService;
     }
 
     @Transactional
@@ -71,20 +74,24 @@ public class PedidoService {
             itens.add(item);
         }
 
-        double desconto = 0;
+        double totalComPromo = promocaoService.aplicarDesconto(unidade, totalBruto);
+
+        double descontoFidelidade = 0;
 
         if (dto.isUsarPontos()) {
             fidelidadeService.validarResgate(cliente, dto.getPontosUtilizados());
-            desconto = fidelidadeService.calcularDesconto(dto.getPontosUtilizados());
+            descontoFidelidade = fidelidadeService.calcularDesconto(dto.getPontosUtilizados());
         }
+
+        double totalFinal = Math.max(totalComPromo - descontoFidelidade, 0);
 
         Pedido pedido = Pedido.builder()
                 .cliente(cliente)
                 .unidade(unidade)
                 .dataHora(LocalDateTime.now())
                 .totalBruto(totalBruto)
-                .descontoFidelidade(desconto)
-                .totalFinal(totalBruto - desconto)
+                .descontoFidelidade(descontoFidelidade)
+                .totalFinal(totalFinal)
                 .status(StatusEnum.CRIADO)
                 .canalOrigem(dto.getCanalOrigem())
                 .build();
