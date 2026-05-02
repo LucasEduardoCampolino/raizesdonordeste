@@ -45,7 +45,7 @@ public class UsuarioController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("#id == principal.id or hasAnyRole('GERENTE','ADMIN')")
+    @PreAuthorize("#id.toString() == authentication.name or hasAnyRole('GERENTE','ADMIN')")
     public ResponseEntity<UsuarioResponseDTO> buscar(@PathVariable Long id) {
         return ResponseEntity.ok(service.toDTO(service.buscarPorId(id)));
     }
