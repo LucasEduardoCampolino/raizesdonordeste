@@ -16,35 +16,24 @@ public class EstoqueController {
         this.service = service;
     }
 
-    @GetMapping
-    public ResponseEntity<Estoque> consultar(
-            @RequestParam Long unidadeId,
-            @RequestParam Long produtoId
-    ) {
-        return ResponseEntity.ok(service.buscar(unidadeId, produtoId));
-    }
-
     @PostMapping("/entrada")
     public ResponseEntity<Estoque> adicionar(@RequestBody EstoqueDTO dto) {
-
-        Estoque estoque = service.adicionar(
-                dto.getUnidadeId(),
-                dto.getProdutoId(),
-                dto.getQuantidade()
+        return ResponseEntity.ok(
+                service.adicionar(
+                        dto.getUnidadeId(),
+                        dto.getProdutoId(),
+                        dto.getQuantidade()
+                )
         );
-
-        return ResponseEntity.ok(estoque);
     }
 
     @PostMapping("/saida")
     public ResponseEntity<Void> baixar(@RequestBody EstoqueDTO dto) {
-
         service.baixar(
                 dto.getUnidadeId(),
                 dto.getProdutoId(),
                 dto.getQuantidade()
         );
-
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 }
