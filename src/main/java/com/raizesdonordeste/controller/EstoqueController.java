@@ -1,5 +1,6 @@
 package com.raizesdonordeste.controller;
 
+import com.raizesdonordeste.dto.EstoqueDTO;
 import com.raizesdonordeste.model.entity.Estoque;
 import com.raizesdonordeste.service.EstoqueService;
 import org.springframework.http.ResponseEntity;
@@ -24,21 +25,26 @@ public class EstoqueController {
     }
 
     @PostMapping("/entrada")
-    public ResponseEntity<Estoque> adicionar(
-            @RequestParam Long unidadeId,
-            @RequestParam Long produtoId,
-            @RequestParam int quantidade
-    ) {
-        return ResponseEntity.ok(service.adicionar(unidadeId, produtoId, quantidade));
+    public ResponseEntity<Estoque> adicionar(@RequestBody EstoqueDTO dto) {
+
+        Estoque estoque = service.adicionar(
+                dto.getUnidadeId(),
+                dto.getProdutoId(),
+                dto.getQuantidade()
+        );
+
+        return ResponseEntity.ok(estoque);
     }
 
     @PostMapping("/saida")
-    public ResponseEntity<Void> baixar(
-            @RequestParam Long unidadeId,
-            @RequestParam Long produtoId,
-            @RequestParam int quantidade
-    ) {
-        service.baixar(unidadeId, produtoId, quantidade);
+    public ResponseEntity<Void> baixar(@RequestBody EstoqueDTO dto) {
+
+        service.baixar(
+                dto.getUnidadeId(),
+                dto.getProdutoId(),
+                dto.getQuantidade()
+        );
+
         return ResponseEntity.ok().build();
     }
 }

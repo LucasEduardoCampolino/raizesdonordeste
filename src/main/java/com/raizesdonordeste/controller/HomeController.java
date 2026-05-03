@@ -14,6 +14,11 @@ public class HomeController {
 
     @GetMapping("/debug")
     public Object debug(Authentication auth) {
+
+        if (auth == null) {
+            return "SEM AUTENTICACAO";
+        }
+
         return auth;
     }
 }
