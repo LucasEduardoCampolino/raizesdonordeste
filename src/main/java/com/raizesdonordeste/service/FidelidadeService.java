@@ -14,26 +14,47 @@ public class FidelidadeService {
     }
 
     public int calcularPontos(Double valor) {
-        return valor.intValue(); // 1 real = 1 ponto
+
+        if (valor == null || valor <= 0) {
+            return 0;
+        }
+
+        return valor.intValue();
     }
 
     public double calcularDesconto(int pontos) {
-        return pontos * 0.1; // 1 ponto = 0.10
+
+        if (pontos < 0) {
+            throw new RuntimeException("Pontos inválidos");
+        }
+
+        return pontos * 0.1;
     }
 
     public void validarResgate(Usuario usuario, int pontos) {
-        if (usuario.getSaldoPontos() < pontos) {
+
+        if (pontos <= 0) {
+            throw new RuntimeException("Quantidade de pontos inválida");
+        }
+
+        if (usuario.getSaldoPontos() == null || usuario.getSaldoPontos() < pontos) {
             throw new RuntimeException("Pontos insuficientes");
         }
     }
 
     public void debitarPontos(Usuario usuario, int pontos) {
+
+        if (pontos <= 0) {
+            throw new RuntimeException("Pontos inválidos");
+        }
+
         usuario.setSaldoPontos(usuario.getSaldoPontos() - pontos);
         usuarioRepository.save(usuario);
     }
 
     public void adicionarPontos(Usuario usuario, int pontos) {
-        usuario.setSaldoPontos(usuario.getSaldoPontos() + pontos);
+        int saldo = usuario.getSaldoPontos() == null ? 0 : usuario.getSaldoPontos();
+        usuario.setSaldoPontos(saldo + pontos);
         usuarioRepository.save(usuario);
     }
 }

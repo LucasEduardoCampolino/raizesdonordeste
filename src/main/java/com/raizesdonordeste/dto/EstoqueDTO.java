@@ -3,7 +3,9 @@ package com.raizesdonordeste.dto;
 import lombok.Data;
 
 @Data
-public class ItemDTO {
+public class EstoqueDTO {
+
+    private Long unidadeId;
     private Long produtoId;
-    private int quantidade;
+    private Integer quantidade;
 }

@@ -1,31 +1,39 @@
 package com.raizesdonordeste.controller;
 
 import com.raizesdonordeste.dto.PedidoDTO;
-import com.raizesdonordeste.model.entity.Pedido;
+import com.raizesdonordeste.dto.PedidoResponseDTO;
 import com.raizesdonordeste.model.enums.StatusEnum;
 import com.raizesdonordeste.service.PedidoService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
 @RequestMapping("/pedidos")
+@RequiredArgsConstructor
 public class PedidoController {
 
     private final PedidoService service;
 
-    public PedidoController(PedidoService service) {
-        this.service = service;
-    }
-
     @PostMapping
-    public ResponseEntity<Pedido> criar(@RequestBody PedidoDTO dto) {
-        return ResponseEntity.ok(service.processarCheckout(dto));
+    @PreAuthorize("hasRole('CLIENTE')")
+    public ResponseEntity<PedidoResponseDTO> criar(
+            @Valid @RequestBody PedidoDTO dto,
+            Authentication auth
+    ) {
+        return ResponseEntity.ok(
+                service.processarCheckout(dto, auth.getName())
+        );
     }
 
     @PostMapping("/{id}/pagar")
-    public ResponseEntity<Pedido> pagar(@PathVariable Long id) {
+    @PreAuthorize("hasRole('CLIENTE')")
+    public ResponseEntity<PedidoResponseDTO> pagar(@PathVariable Long id) {
         return ResponseEntity.ok(service.processarPagamento(id));
     }
 
@@ -54,7 +62,7 @@ public class PedidoController {
     }
 
     @GetMapping("/fila-cozinha")
-    public ResponseEntity<List<Pedido>> fila() {
+    public ResponseEntity<List<PedidoResponseDTO>> fila() {
         return ResponseEntity.ok(service.filaCozinha());
     }
 }

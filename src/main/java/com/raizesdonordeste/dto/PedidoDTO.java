@@ -1,16 +1,22 @@
 package com.raizesdonordeste.dto;
 
-import com.raizesdonordeste.model.enums.CanalEnum;
+import jakarta.validation.constraints.*;
 import lombok.Data;
-
 import java.util.List;
 
 @Data
 public class PedidoDTO {
-    private Long clienteId;
+
+    @NotNull(message = "unidadeId é obrigatório")
     private Long unidadeId;
+
+    @NotEmpty(message = "O pedido deve ter pelo menos um item")
     private List<ItemDTO> itens;
-    private CanalEnum canalOrigem;
+
+    @NotBlank(message = "Canal de origem é obrigatório")
+    private String canalOrigem;
+
     private boolean usarPontos;
-    private int pontosUtilizados;
+
+    private Integer pontosUtilizados;
 }
