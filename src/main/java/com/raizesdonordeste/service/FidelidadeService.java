@@ -14,10 +14,20 @@ public class FidelidadeService {
     }
 
     public int calcularPontos(Double valor) {
+
+        if (valor == null || valor <= 0) {
+            return 0;
+        }
+
         return valor.intValue();
     }
 
     public double calcularDesconto(int pontos) {
+
+        if (pontos < 0) {
+            throw new RuntimeException("Pontos inválidos");
+        }
+
         return pontos * 0.1;
     }
 
@@ -33,6 +43,11 @@ public class FidelidadeService {
     }
 
     public void debitarPontos(Usuario usuario, int pontos) {
+
+        if (pontos <= 0) {
+            throw new RuntimeException("Pontos inválidos");
+        }
+
         usuario.setSaldoPontos(usuario.getSaldoPontos() - pontos);
         usuarioRepository.save(usuario);
     }

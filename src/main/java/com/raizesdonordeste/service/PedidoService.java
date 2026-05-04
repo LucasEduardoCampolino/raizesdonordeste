@@ -2,13 +2,16 @@ package com.raizesdonordeste.service;
 
 import com.raizesdonordeste.dto.ItemDTO;
 import com.raizesdonordeste.dto.PedidoDTO;
+import com.raizesdonordeste.dto.PedidoResponseDTO;
+import com.raizesdonordeste.model.entity.Pedido;
 import com.raizesdonordeste.model.entity.*;
 import com.raizesdonordeste.model.enums.CanalEnum;
 import com.raizesdonordeste.model.enums.StatusEnum;
 import com.raizesdonordeste.repository.*;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.raizesdonordeste.gateway.PagamentoGateway;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -26,22 +29,20 @@ public class PedidoService {
     private final EstoqueService estoqueService;
     private final FidelidadeService fidelidadeService;
     private final PromocaoService promocaoService;
-    private final PagamentoService pagamentoService;
+    private final PagamentoGateway pagamentoGateway;
     private final AuditoriaService auditoriaService;
 
-    private CanalEnum parseCanal(String canal) {
-        try {
-            return CanalEnum.valueOf(canal.toUpperCase());
-        } catch (Exception e) {
-            throw new RuntimeException("Canal de origem inválido");
+    public List<PedidoResponseDTO> filaCozinha() {
+        return pedidoRepository.findByStatusIn(
+                List.of(StatusEnum.PAGO, StatusEnum.EM_PREPARACAO)
+        ).stream().map(this::toDTO).toList();
         }
-    }
 
     @Transactional
-    public Pedido processarCheckout(PedidoDTO dto, String emailLogado) {
+    public PedidoResponseDTO processarCheckout(PedidoDTO dto, String emailCliente) {
 
-        Usuario cliente = usuarioRepository.findByEmail(emailLogado)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+        Usuario cliente = usuarioRepository.findByEmail(emailCliente)
+                .orElseThrow(() -> new RuntimeException("Cliente não encontrado"));
 
         Unidade unidade = unidadeRepository.findById(dto.getUnidadeId())
                 .orElseThrow(() -> new RuntimeException("Unidade não encontrada"));
@@ -50,7 +51,7 @@ public class PedidoService {
         pedido.setCliente(cliente);
         pedido.setUnidade(unidade);
         pedido.setStatus(StatusEnum.CRIADO);
-        pedido.setCanalOrigem(parseCanal(dto.getCanalOrigem()));
+        pedido.setCanalOrigem(CanalEnum.valueOf(dto.getCanalOrigem().toUpperCase()));
         pedido.setDataHora(LocalDateTime.now());
 
         List<ItemPedido> itens = new ArrayList<>();
@@ -60,11 +61,7 @@ public class PedidoService {
             Produto produto = produtoRepository.findById(itemDTO.getProdutoId())
                     .orElseThrow(() -> new RuntimeException("Produto não encontrado"));
 
-            Estoque estoque = estoqueService.buscar(unidade.getId(), produto.getId());
-
-            if (estoque.getQuantidade() < itemDTO.getQuantidade()) {
-                throw new RuntimeException("Estoque insuficiente para produto: " + produto.getNome());
-            }
+            estoqueService.buscar(unidade.getId(), produto.getId());
 
             ItemPedido item = new ItemPedido();
             item.setPedido(pedido);
@@ -77,27 +74,14 @@ public class PedidoService {
 
         pedido.setItens(itens);
 
-        promocaoService.aplicarDescontoSazonal(pedido);
+        double total = itens.stream()
+                .mapToDouble(i -> i.getPrecoAplicado() * i.getQuantidade())
+                .sum();
 
-        double descontoFidelidade = 0;
+        pedido.setTotalBruto(total);
 
-        if (dto.isUsarPontos()) {
-
-            int pontosUsar = dto.getPontosUtilizados() != null
-                    ? dto.getPontosUtilizados()
-                    : 0;
-
-            if (pontosUsar > 0) {
-                fidelidadeService.validarResgate(cliente, pontosUsar);
-                descontoFidelidade = fidelidadeService.calcularDesconto(pontosUsar);
-                fidelidadeService.debitarPontos(cliente, pontosUsar);
-            }
-        }
-
-        double totalFinal = Math.max(pedido.getTotalFinal() - descontoFidelidade, 0);
-
-        pedido.setDescontoFidelidade(descontoFidelidade);
-        pedido.setTotalFinal(totalFinal);
+        double totalComDesconto = promocaoService.aplicarDesconto(unidade, total);
+        pedido.setTotalFinal(totalComDesconto);
 
         Pedido salvo = pedidoRepository.save(pedido);
 
@@ -109,11 +93,11 @@ public class PedidoService {
                 salvo
         );
 
-        return salvo;
+        return toDTO(salvo);
     }
 
     @Transactional
-    public Pedido processarPagamento(Long id) {
+    public PedidoResponseDTO processarPagamento(Long id) {
 
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Pedido não encontrado"));
@@ -122,7 +106,7 @@ public class PedidoService {
             throw new RuntimeException("Pedido não pode ser pago");
         }
 
-        String transacao = pagamentoService.processarPagamento(pedido);
+        String transacao = pagamentoGateway.processarPagamento(pedido);
 
         pedido.setTransacaoGatewayId(transacao);
         pedido.setStatus(StatusEnum.PAGO);
@@ -135,61 +119,57 @@ public class PedidoService {
             );
         }
 
-        Usuario cliente = pedido.getCliente();
         int pontos = fidelidadeService.calcularPontos(pedido.getTotalFinal());
-        fidelidadeService.adicionarPontos(cliente, pontos);
+        fidelidadeService.adicionarPontos(pedido.getCliente(), pontos);
 
-        Pedido atualizado = pedidoRepository.save(pedido);
+        Pedido salvo = pedidoRepository.save(pedido);
 
         auditoriaService.registrarLog(
-                cliente.getId(),
+                pedido.getCliente().getId(),
                 "PAGAR_PEDIDO",
                 "pedido",
-                atualizado.getId(),
-                atualizado
+                pedido.getId(),
+                pedido
         );
 
-        return atualizado;
+        return toDTO(salvo);
     }
 
-    public List<Pedido> filaCozinha() {
-        return pedidoRepository.findByStatusIn(
-                List.of(StatusEnum.PAGO, StatusEnum.EM_PREPARACAO)
-        );
-    }
-
-    public void alterarStatus(Long id, StatusEnum novoStatus) {
+    @Transactional
+    public void alterarStatus(Long id, StatusEnum status) {
 
         Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Pedido não encontrado"));
 
-        StatusEnum atual = pedido.getStatus();
+        pedido.setStatus(status);
 
-        if (atual == StatusEnum.CANCELADO) {
-            throw new RuntimeException("Pedido já cancelado");
-        }
+        pedidoRepository.save(pedido);
 
-        boolean transicaoValida =
-                (atual == StatusEnum.PAGO && novoStatus == StatusEnum.EM_PREPARACAO) ||
-                (atual == StatusEnum.EM_PREPARACAO && novoStatus == StatusEnum.PRONTO) ||
-                (atual == StatusEnum.PRONTO && novoStatus == StatusEnum.ENTREGUE);
+        auditoriaService.registrarLog(
+                pedido.getCliente().getId(),
+                "ALTERAR_STATUS",
+                "pedido",
+                pedido.getId(),
+                status
+        );
+    }
 
-        if (transicaoValida || novoStatus == StatusEnum.CANCELADO) {
+    public PedidoResponseDTO toDTO(Pedido pedido) {
 
-            pedido.setStatus(novoStatus);
-            pedidoRepository.save(pedido);
-
-            auditoriaService.registrarLog(
-                    pedido.getCliente().getId(),
-                    "ALTERAR_STATUS_" + novoStatus,
-                    "pedido",
-                    pedido.getId(),
-                    null
-            );
-
-            return;
-        }
-
-        throw new RuntimeException("Transição de status inválida");
+        return PedidoResponseDTO.builder()
+                .id(pedido.getId())
+                .status(pedido.getStatus().name())
+                .totalFinal(pedido.getTotalFinal())
+                .dataHora(pedido.getDataHora())
+                .itens(
+                        pedido.getItens().stream().map(item ->
+                                PedidoResponseDTO.ItemResponseDTO.builder()
+                                        .produtoNome(item.getProduto().getNome())
+                                        .quantidade(item.getQuantidade())
+                                        .preco(item.getPrecoAplicado())
+                                        .build()
+                        ).toList()
+                )
+                .build();
     }
 }

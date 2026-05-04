@@ -7,9 +7,6 @@ import java.util.List;
 @Data
 public class PedidoDTO {
 
-    @NotNull(message = "clienteId é obrigatório")
-    private Long clienteId;
-
     @NotNull(message = "unidadeId é obrigatório")
     private Long unidadeId;
 

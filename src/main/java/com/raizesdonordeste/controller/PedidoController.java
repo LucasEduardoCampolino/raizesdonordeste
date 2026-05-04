@@ -1,7 +1,7 @@
 package com.raizesdonordeste.controller;
 
 import com.raizesdonordeste.dto.PedidoDTO;
-import com.raizesdonordeste.model.entity.Pedido;
+import com.raizesdonordeste.dto.PedidoResponseDTO;
 import com.raizesdonordeste.model.enums.StatusEnum;
 import com.raizesdonordeste.service.PedidoService;
 import lombok.RequiredArgsConstructor;
@@ -22,8 +22,8 @@ public class PedidoController {
 
     @PostMapping
     @PreAuthorize("hasRole('CLIENTE')")
-    public ResponseEntity<Pedido> criar(
-            @RequestBody @Valid PedidoDTO dto,
+    public ResponseEntity<PedidoResponseDTO> criar(
+            @Valid @RequestBody PedidoDTO dto,
             Authentication auth
     ) {
         return ResponseEntity.ok(
@@ -33,41 +33,36 @@ public class PedidoController {
 
     @PostMapping("/{id}/pagar")
     @PreAuthorize("hasRole('CLIENTE')")
-    public ResponseEntity<Pedido> pagar(@PathVariable Long id) {
+    public ResponseEntity<PedidoResponseDTO> pagar(@PathVariable Long id) {
         return ResponseEntity.ok(service.processarPagamento(id));
     }
 
     @PutMapping("/{id}/preparar")
-    @PreAuthorize("hasAnyRole('ATENDENTE','COZINHA','GERENTE','ADMIN')")
     public ResponseEntity<Void> iniciarPreparo(@PathVariable Long id) {
         service.alterarStatus(id, StatusEnum.EM_PREPARACAO);
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{id}/pronto")
-    @PreAuthorize("hasAnyRole('COZINHA','GERENTE','ADMIN')")
     public ResponseEntity<Void> marcarPronto(@PathVariable Long id) {
         service.alterarStatus(id, StatusEnum.PRONTO);
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{id}/entregar")
-    @PreAuthorize("hasAnyRole('ATENDENTE','GERENTE','ADMIN')")
     public ResponseEntity<Void> entregar(@PathVariable Long id) {
         service.alterarStatus(id, StatusEnum.ENTREGUE);
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{id}/cancelar")
-    @PreAuthorize("hasAnyRole('GERENTE','ADMIN')")
     public ResponseEntity<Void> cancelar(@PathVariable Long id) {
         service.alterarStatus(id, StatusEnum.CANCELADO);
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/fila-cozinha")
-    @PreAuthorize("hasAnyRole('COZINHA','GERENTE','ADMIN')")
-    public ResponseEntity<List<Pedido>> fila() {
+    public ResponseEntity<List<PedidoResponseDTO>> fila() {
         return ResponseEntity.ok(service.filaCozinha());
     }
 }

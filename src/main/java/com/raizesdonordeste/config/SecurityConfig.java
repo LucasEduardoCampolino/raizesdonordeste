@@ -34,12 +34,13 @@ public class SecurityConfig {
 
                 .authorizeHttpRequests(auth -> auth
 
-                        .requestMatchers("/auth/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/usuarios").permitAll()
+                    .requestMatchers("/auth/**").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/usuarios").permitAll()
+                    .requestMatchers("/error").permitAll()
 
-                        .requestMatchers("/error").permitAll()
+                    .requestMatchers("/auditoria/**").hasRole("ADMIN")
 
-                        .anyRequest().authenticated()
+                    .anyRequest().authenticated()
                 )
 
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)

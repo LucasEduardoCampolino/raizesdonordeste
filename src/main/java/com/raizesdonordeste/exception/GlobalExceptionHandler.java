@@ -32,4 +32,24 @@ public class GlobalExceptionHandler {
                 )
         );
     }
+
+    @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
+    public ResponseEntity<?> handleValidation(
+            org.springframework.web.bind.MethodArgumentNotValidException ex
+    ) {
+
+        var errors = ex.getBindingResult()
+                .getFieldErrors()
+                .stream()
+                .map(e -> e.getField() + ": " + e.getDefaultMessage())
+                .toList();
+
+        return ResponseEntity.badRequest().body(
+                Map.of(
+                        "erro", "Erro de validação",
+                        "detalhes", errors,
+                        "timestamp", LocalDateTime.now()
+                )
+        );
+    }
 }
