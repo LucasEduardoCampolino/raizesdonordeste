@@ -2,187 +2,174 @@ package com.raizesdonordeste.service;
 
 import com.raizesdonordeste.dto.ItemDTO;
 import com.raizesdonordeste.dto.PedidoDTO;
-import com.raizesdonordeste.gateway.PagamentoGateway;
+import com.raizesdonordeste.dto.PedidoResponseDTO;
+import com.raizesdonordeste.model.entity.Pedido;
 import com.raizesdonordeste.model.entity.*;
+import com.raizesdonordeste.model.enums.CanalEnum;
 import com.raizesdonordeste.model.enums.StatusEnum;
 import com.raizesdonordeste.repository.*;
+import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
+import com.raizesdonordeste.gateway.PagamentoGateway;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
 @Service
+@RequiredArgsConstructor
 public class PedidoService {
 
-    private final PedidoRepository repository;
     private final UsuarioRepository usuarioRepository;
     private final UnidadeRepository unidadeRepository;
     private final ProdutoRepository produtoRepository;
+    private final PedidoRepository pedidoRepository;
+
     private final EstoqueService estoqueService;
-    private final PagamentoGateway pagamentoGateway;
     private final FidelidadeService fidelidadeService;
     private final PromocaoService promocaoService;
+    private final PagamentoGateway pagamentoGateway;
+    private final AuditoriaService auditoriaService;
 
-    public PedidoService(
-            PedidoRepository repository,
-            UsuarioRepository usuarioRepository,
-            UnidadeRepository unidadeRepository,
-            ProdutoRepository produtoRepository,
-            EstoqueService estoqueService,
-            PagamentoGateway pagamentoGateway,
-            FidelidadeService fidelidadeService,
-            PromocaoService promocaoService
-    ) {
-        this.repository = repository;
-        this.usuarioRepository = usuarioRepository;
-        this.unidadeRepository = unidadeRepository;
-        this.produtoRepository = produtoRepository;
-        this.estoqueService = estoqueService;
-        this.pagamentoGateway = pagamentoGateway;
-        this.fidelidadeService = fidelidadeService;
-        this.promocaoService = promocaoService;
-    }
+    public List<PedidoResponseDTO> filaCozinha() {
+        return pedidoRepository.findByStatusIn(
+                List.of(StatusEnum.PAGO, StatusEnum.EM_PREPARACAO)
+        ).stream().map(this::toDTO).toList();
+        }
 
     @Transactional
-    public Pedido processarCheckout(PedidoDTO dto) {
+    public PedidoResponseDTO processarCheckout(PedidoDTO dto, String emailCliente) {
 
-        Usuario cliente = usuarioRepository.findById(dto.getClienteId())
+        Usuario cliente = usuarioRepository.findByEmail(emailCliente)
                 .orElseThrow(() -> new RuntimeException("Cliente não encontrado"));
 
         Unidade unidade = unidadeRepository.findById(dto.getUnidadeId())
                 .orElseThrow(() -> new RuntimeException("Unidade não encontrada"));
 
+        Pedido pedido = new Pedido();
+        pedido.setCliente(cliente);
+        pedido.setUnidade(unidade);
+        pedido.setStatus(StatusEnum.CRIADO);
+        pedido.setCanalOrigem(CanalEnum.valueOf(dto.getCanalOrigem().toUpperCase()));
+        pedido.setDataHora(LocalDateTime.now());
+
         List<ItemPedido> itens = new ArrayList<>();
-        double totalBruto = 0;
 
         for (ItemDTO itemDTO : dto.getItens()) {
 
             Produto produto = produtoRepository.findById(itemDTO.getProdutoId())
                     .orElseThrow(() -> new RuntimeException("Produto não encontrado"));
 
-            double preco = produto.getPrecoBase();
+            estoqueService.buscar(unidade.getId(), produto.getId());
 
-            ItemPedido item = ItemPedido.builder()
-                    .produto(produto)
-                    .quantidade(itemDTO.getQuantidade())
-                    .precoAplicado(preco)
-                    .build();
+            ItemPedido item = new ItemPedido();
+            item.setPedido(pedido);
+            item.setProduto(produto);
+            item.setQuantidade(itemDTO.getQuantidade());
+            item.setPrecoAplicado(produto.getPrecoBase());
 
-            totalBruto += preco * itemDTO.getQuantidade();
             itens.add(item);
         }
 
-        double totalComPromo = promocaoService.aplicarDesconto(unidade, totalBruto);
-
-        double descontoFidelidade = 0;
-
-        if (dto.isUsarPontos()) {
-            fidelidadeService.validarResgate(cliente, dto.getPontosUtilizados());
-            descontoFidelidade = fidelidadeService.calcularDesconto(dto.getPontosUtilizados());
-        }
-
-        double totalFinal = Math.max(totalComPromo - descontoFidelidade, 0);
-
-        Pedido pedido = Pedido.builder()
-                .cliente(cliente)
-                .unidade(unidade)
-                .dataHora(LocalDateTime.now())
-                .totalBruto(totalBruto)
-                .descontoFidelidade(descontoFidelidade)
-                .totalFinal(totalFinal)
-                .status(StatusEnum.CRIADO)
-                .canalOrigem(dto.getCanalOrigem())
-                .build();
-
-        itens.forEach(i -> i.setPedido(pedido));
         pedido.setItens(itens);
 
-        return repository.save(pedido);
+        double total = itens.stream()
+                .mapToDouble(i -> i.getPrecoAplicado() * i.getQuantidade())
+                .sum();
+
+        pedido.setTotalBruto(total);
+
+        double totalComDesconto = promocaoService.aplicarDesconto(unidade, total);
+        pedido.setTotalFinal(totalComDesconto);
+
+        Pedido salvo = pedidoRepository.save(pedido);
+
+        auditoriaService.registrarLog(
+                cliente.getId(),
+                "CRIAR_PEDIDO",
+                "pedido",
+                salvo.getId(),
+                salvo
+        );
+
+        return toDTO(salvo);
     }
 
     @Transactional
-    public Pedido processarPagamento(Long pedidoId) {
+    public PedidoResponseDTO processarPagamento(Long id) {
 
-        Pedido pedido = repository.findById(pedidoId)
+        Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Pedido não encontrado"));
 
         if (pedido.getStatus() != StatusEnum.CRIADO) {
             throw new RuntimeException("Pedido não pode ser pago");
         }
 
-        try {
-            for (ItemPedido item : pedido.getItens()) {
-                estoqueService.validarEBaixarEstoque(
-                        pedido.getUnidade().getId(),
-                        item.getProduto().getId(),
-                        item.getQuantidade()
-                );
-            }
+        String transacao = pagamentoGateway.processarPagamento(pedido);
 
-            String transacaoId = pagamentoGateway.processarPagamento(pedido);
+        pedido.setTransacaoGatewayId(transacao);
+        pedido.setStatus(StatusEnum.PAGO);
 
-            Usuario cliente = pedido.getCliente();
-
-            if (pedido.getDescontoFidelidade() > 0) {
-                int pontosUsados = (int) (pedido.getDescontoFidelidade() / 0.1);
-                fidelidadeService.debitarPontos(cliente, pontosUsados);
-            }
-
-            int pontosGanhos = fidelidadeService.calcularPontos(pedido.getTotalFinal());
-            fidelidadeService.adicionarPontos(cliente, pontosGanhos);
-
-            pedido.setStatus(StatusEnum.PAGO);
-            pedido.setTransacaoGatewayId(transacaoId);
-
-            return repository.save(pedido);
-
-        } catch (Exception e) {
-            pedido.setStatus(StatusEnum.CANCELADO);
-            repository.save(pedido);
-            throw new RuntimeException("Pagamento falhou");
+        for (ItemPedido item : pedido.getItens()) {
+            estoqueService.baixar(
+                    pedido.getUnidade().getId(),
+                    item.getProduto().getId(),
+                    item.getQuantidade()
+            );
         }
+
+        int pontos = fidelidadeService.calcularPontos(pedido.getTotalFinal());
+        fidelidadeService.adicionarPontos(pedido.getCliente(), pontos);
+
+        Pedido salvo = pedidoRepository.save(pedido);
+
+        auditoriaService.registrarLog(
+                pedido.getCliente().getId(),
+                "PAGAR_PEDIDO",
+                "pedido",
+                pedido.getId(),
+                pedido
+        );
+
+        return toDTO(salvo);
     }
 
-    public void alterarStatus(Long id, StatusEnum novoStatus) {
+    @Transactional
+    public void alterarStatus(Long id, StatusEnum status) {
 
-        Pedido pedido = repository.findById(id)
+        Pedido pedido = pedidoRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Pedido não encontrado"));
 
-        StatusEnum atual = pedido.getStatus();
+        pedido.setStatus(status);
 
-        switch (atual) {
+        pedidoRepository.save(pedido);
 
-            case PAGO -> {
-                if (novoStatus != StatusEnum.EM_PREPARACAO) {
-                    throw new RuntimeException("Pedido pago só pode ir para EM_PREPARACAO");
-                }
-            }
-
-            case EM_PREPARACAO -> {
-                if (novoStatus != StatusEnum.PRONTO) {
-                    throw new RuntimeException("Pedido em preparação só pode ir para PRONTO");
-                }
-            }
-
-            case PRONTO -> {
-                if (novoStatus != StatusEnum.ENTREGUE) {
-                    throw new RuntimeException("Pedido pronto só pode ser ENTREGUE");
-                }
-            }
-
-            default -> throw new RuntimeException("Transição de status inválida");
-        }
-
-        pedido.setStatus(novoStatus);
-        repository.save(pedido);
+        auditoriaService.registrarLog(
+                pedido.getCliente().getId(),
+                "ALTERAR_STATUS",
+                "pedido",
+                pedido.getId(),
+                status
+        );
     }
 
-    public List<Pedido> filaCozinha() {
-        return repository.findAll().stream()
-                .filter(p -> p.getStatus() == StatusEnum.PAGO
-                        || p.getStatus() == StatusEnum.EM_PREPARACAO)
-                .toList();
+    public PedidoResponseDTO toDTO(Pedido pedido) {
+
+        return PedidoResponseDTO.builder()
+                .id(pedido.getId())
+                .status(pedido.getStatus().name())
+                .totalFinal(pedido.getTotalFinal())
+                .dataHora(pedido.getDataHora())
+                .itens(
+                        pedido.getItens().stream().map(item ->
+                                PedidoResponseDTO.ItemResponseDTO.builder()
+                                        .produtoNome(item.getProduto().getNome())
+                                        .quantidade(item.getQuantidade())
+                                        .preco(item.getPrecoAplicado())
+                                        .build()
+                        ).toList()
+                )
+                .build();
     }
 }

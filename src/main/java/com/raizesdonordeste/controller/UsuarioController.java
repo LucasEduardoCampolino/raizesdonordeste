@@ -37,7 +37,7 @@ public class UsuarioController {
     }
 
     @GetMapping
-    @PreAuthorize("hasAnyRole('GERENTE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('GERENTE','ADMIN')")
     public ResponseEntity<List<UsuarioResponseDTO>> listar() {
         return ResponseEntity.ok(
                 service.listarTodos().stream().map(service::toDTO).toList()
@@ -45,13 +45,13 @@ public class UsuarioController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("#id == principal.id or hasAnyRole('GERENTE','ADMIN')")
+    @PreAuthorize("hasAnyRole('GERENTE','ADMIN') or authentication.name != null")
     public ResponseEntity<UsuarioResponseDTO> buscar(@PathVariable Long id) {
         return ResponseEntity.ok(service.toDTO(service.buscarPorId(id)));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("#id == principal.id or hasRole('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UsuarioResponseDTO> atualizar(
             @PathVariable Long id,
             @RequestBody UsuarioDTO dto

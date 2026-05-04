@@ -3,10 +3,7 @@ package com.raizesdonordeste.model.entity;
 import com.raizesdonordeste.model.enums.CanalEnum;
 import com.raizesdonordeste.model.enums.StatusEnum;
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.List;

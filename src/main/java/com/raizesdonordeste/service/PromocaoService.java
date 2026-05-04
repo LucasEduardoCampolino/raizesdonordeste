@@ -28,6 +28,18 @@ public class PromocaoService {
         );
     }
 
+    public void aplicarDescontoSazonal(Pedido pedido) {
+
+        double total = pedido.getItens().stream()
+                .mapToDouble(i -> i.getPrecoAplicado() * i.getQuantidade())
+                .sum();
+
+        double totalComDesconto = aplicarDesconto(pedido.getUnidade(), total);
+
+        pedido.setTotalBruto(total);
+        pedido.setTotalFinal(totalComDesconto);
+    }
+
     public double aplicarDesconto(Unidade unidade, double totalBruto) {
 
         List<Promocao> promocoes = buscarPromocoesAtivas(unidade);
