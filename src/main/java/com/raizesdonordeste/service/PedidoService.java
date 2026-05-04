@@ -96,80 +96,89 @@ public class PedidoService {
         return toDTO(salvo);
     }
 
-    @Transactional
-    public PedidoResponseDTO processarPagamento(Long id) {
+        @Transactional
+        public PedidoResponseDTO processarPagamento(Long id) {
 
-        Pedido pedido = pedidoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Pedido não encontrado"));
+                Pedido pedido = pedidoRepository.findById(id)
+                        .orElseThrow(() -> new RuntimeException("Pedido não encontrado"));
 
-        if (pedido.getStatus() != StatusEnum.CRIADO) {
-            throw new RuntimeException("Pedido não pode ser pago");
+                if (pedido.getStatus() != StatusEnum.CRIADO) {
+                        throw new RuntimeException("Pedido não pode ser pago");
+                }
+
+                try {
+                        String transacao = pagamentoGateway.processarPagamento(pedido);
+
+                        pedido.setTransacaoGatewayId(transacao);
+                        pedido.setStatus(StatusEnum.PAGO);
+
+                        for (ItemPedido item : pedido.getItens()) {
+                        estoqueService.baixar(
+                                pedido.getUnidade().getId(),
+                                item.getProduto().getId(),
+                                item.getQuantidade()
+                        );
+                        }
+
+                        int pontos = fidelidadeService.calcularPontos(pedido.getTotalFinal());
+                        fidelidadeService.adicionarPontos(pedido.getCliente(), pontos);
+
+                        pedidoRepository.save(pedido);
+
+                        auditoriaService.registrarLog(
+                                pedido.getCliente().getId(),
+                                "PAGAR_PEDIDO",
+                                "pedido",
+                                pedido.getId(),
+                                pedido
+                        );
+
+                } catch (Exception e) {
+                        pedido.setStatus(StatusEnum.CRIADO);
+
+                        pedidoRepository.save(pedido);
+
+                        throw new RuntimeException("Falha no pagamento: " + e.getMessage());
+                }
+
+                return toDTO(pedido);
         }
 
-        String transacao = pagamentoGateway.processarPagamento(pedido);
+        @Transactional
+        public void alterarStatus(Long id, StatusEnum status) {
 
-        pedido.setTransacaoGatewayId(transacao);
-        pedido.setStatus(StatusEnum.PAGO);
+                Pedido pedido = pedidoRepository.findById(id)
+                        .orElseThrow(() -> new RuntimeException("Pedido não encontrado"));
 
-        for (ItemPedido item : pedido.getItens()) {
-            estoqueService.baixar(
-                    pedido.getUnidade().getId(),
-                    item.getProduto().getId(),
-                    item.getQuantidade()
-            );
+                pedido.setStatus(status);
+
+                pedidoRepository.save(pedido);
+
+                auditoriaService.registrarLog(
+                        pedido.getCliente().getId(),
+                        "ALTERAR_STATUS",
+                        "pedido",
+                        pedido.getId(),
+                        status
+                );
         }
 
-        int pontos = fidelidadeService.calcularPontos(pedido.getTotalFinal());
-        fidelidadeService.adicionarPontos(pedido.getCliente(), pontos);
+        public PedidoResponseDTO toDTO(Pedido pedido) {
 
-        Pedido salvo = pedidoRepository.save(pedido);
-
-        auditoriaService.registrarLog(
-                pedido.getCliente().getId(),
-                "PAGAR_PEDIDO",
-                "pedido",
-                pedido.getId(),
-                pedido
-        );
-
-        return toDTO(salvo);
-    }
-
-    @Transactional
-    public void alterarStatus(Long id, StatusEnum status) {
-
-        Pedido pedido = pedidoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Pedido não encontrado"));
-
-        pedido.setStatus(status);
-
-        pedidoRepository.save(pedido);
-
-        auditoriaService.registrarLog(
-                pedido.getCliente().getId(),
-                "ALTERAR_STATUS",
-                "pedido",
-                pedido.getId(),
-                status
-        );
-    }
-
-    public PedidoResponseDTO toDTO(Pedido pedido) {
-
-        return PedidoResponseDTO.builder()
-                .id(pedido.getId())
-                .status(pedido.getStatus().name())
-                .totalFinal(pedido.getTotalFinal())
-                .dataHora(pedido.getDataHora())
-                .itens(
-                        pedido.getItens().stream().map(item ->
-                                PedidoResponseDTO.ItemResponseDTO.builder()
-                                        .produtoNome(item.getProduto().getNome())
-                                        .quantidade(item.getQuantidade())
-                                        .preco(item.getPrecoAplicado())
-                                        .build()
-                        ).toList()
-                )
-                .build();
-    }
+                return PedidoResponseDTO.builder()
+                        .id(pedido.getId())
+                        .status(pedido.getStatus().name())
+                        .totalFinal(pedido.getTotalFinal())
+                        .dataHora(pedido.getDataHora())
+                        .itens(
+                                pedido.getItens().stream().map(item ->
+                                        PedidoResponseDTO.ItemResponseDTO.builder()
+                                                .produtoNome(item.getProduto().getNome())
+                                                .quantidade(item.getQuantidade())
+                                                .preco(item.getPrecoAplicado())
+                                                .build()
+                                ).toList()
+                        )
+                        .build();
+        }
 }

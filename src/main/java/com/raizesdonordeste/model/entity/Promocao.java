@@ -1,16 +1,12 @@
 package com.raizesdonordeste.model.entity;
 
 import jakarta.persistence.*;
-import lombok.*;
+import lombok.Data;
 
-import java.time.LocalDateTime;
+import java.time.LocalDate;
 
 @Entity
-@Table(name = "promocoes")
 @Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
 public class Promocao {
 
     @Id
@@ -21,12 +17,12 @@ public class Promocao {
 
     private Double valorPromocional;
 
-    private LocalDateTime dataInicio;
-    private LocalDateTime dataFim;
+    private LocalDate dataInicio;
+
+    private LocalDate dataFim;
 
     private Boolean ativo;
 
     @ManyToOne
-    @JoinColumn(name = "unidade_id")
     private Unidade unidade;
 }
