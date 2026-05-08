@@ -3,15 +3,17 @@ package com.raizesdonordeste.service;
 import com.raizesdonordeste.dto.ItemDTO;
 import com.raizesdonordeste.dto.PedidoDTO;
 import com.raizesdonordeste.dto.PedidoResponseDTO;
-import com.raizesdonordeste.model.entity.Pedido;
+import com.raizesdonordeste.gateway.PagamentoGateway;
 import com.raizesdonordeste.model.entity.*;
 import com.raizesdonordeste.model.enums.CanalEnum;
 import com.raizesdonordeste.model.enums.StatusEnum;
-import com.raizesdonordeste.repository.*;
+import com.raizesdonordeste.repository.PedidoRepository;
+import com.raizesdonordeste.repository.ProdutoRepository;
+import com.raizesdonordeste.repository.UnidadeRepository;
+import com.raizesdonordeste.repository.UsuarioRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import com.raizesdonordeste.gateway.PagamentoGateway;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -36,7 +38,14 @@ public class PedidoService {
         return pedidoRepository.findByStatusIn(
                 List.of(StatusEnum.PAGO, StatusEnum.EM_PREPARACAO)
         ).stream().map(this::toDTO).toList();
-        }
+    }
+
+    public List<PedidoResponseDTO> buscarPorCanal(CanalEnum canal) {
+        return pedidoRepository.findByCanalOrigem(canal)
+                .stream()
+                .map(this::toDTO)
+                .toList();
+    }
 
     @Transactional
     public PedidoResponseDTO processarCheckout(PedidoDTO dto, String emailCliente) {
@@ -81,7 +90,19 @@ public class PedidoService {
         pedido.setTotalBruto(total);
 
         double totalComDesconto = promocaoService.aplicarDesconto(unidade, total);
-        pedido.setTotalFinal(totalComDesconto);
+
+        if (dto.isUsarPontos() && dto.getPontosUtilizados() != null) {
+
+            fidelidadeService.validarResgate(cliente, dto.getPontosUtilizados());
+
+            double desconto = fidelidadeService.calcularDesconto(dto.getPontosUtilizados());
+
+            totalComDesconto -= desconto;
+
+            pedido.setDescontoFidelidade(desconto);
+        }
+
+        pedido.setTotalFinal(Math.max(totalComDesconto, 0));
 
         Pedido salvo = pedidoRepository.save(pedido);
 
@@ -96,89 +117,120 @@ public class PedidoService {
         return toDTO(salvo);
     }
 
-        @Transactional
-        public PedidoResponseDTO processarPagamento(Long id) {
+    @Transactional
+    public PedidoResponseDTO processarPagamento(Long id) {
 
-                Pedido pedido = pedidoRepository.findById(id)
-                        .orElseThrow(() -> new RuntimeException("Pedido não encontrado"));
+        Pedido pedido = pedidoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Pedido não encontrado"));
 
-                if (pedido.getStatus() != StatusEnum.CRIADO) {
-                        throw new RuntimeException("Pedido não pode ser pago");
-                }
-
-                try {
-                        String transacao = pagamentoGateway.processarPagamento(pedido);
-
-                        pedido.setTransacaoGatewayId(transacao);
-                        pedido.setStatus(StatusEnum.PAGO);
-
-                        for (ItemPedido item : pedido.getItens()) {
-                        estoqueService.baixar(
-                                pedido.getUnidade().getId(),
-                                item.getProduto().getId(),
-                                item.getQuantidade()
-                        );
-                        }
-
-                        int pontos = fidelidadeService.calcularPontos(pedido.getTotalFinal());
-                        fidelidadeService.adicionarPontos(pedido.getCliente(), pontos);
-
-                        pedidoRepository.save(pedido);
-
-                        auditoriaService.registrarLog(
-                                pedido.getCliente().getId(),
-                                "PAGAR_PEDIDO",
-                                "pedido",
-                                pedido.getId(),
-                                pedido
-                        );
-
-                } catch (Exception e) {
-                        pedido.setStatus(StatusEnum.CRIADO);
-
-                        pedidoRepository.save(pedido);
-
-                        throw new RuntimeException("Falha no pagamento: " + e.getMessage());
-                }
-
-                return toDTO(pedido);
+        if (pedido.getStatus() != StatusEnum.CRIADO) {
+            throw new RuntimeException("Pedido não pode ser pago");
         }
 
-        @Transactional
-        public void alterarStatus(Long id, StatusEnum status) {
+        if (pedido.getTransacaoGatewayId() != null) {
+            throw new RuntimeException("Pedido já foi pago");
+        }
 
-                Pedido pedido = pedidoRepository.findById(id)
-                        .orElseThrow(() -> new RuntimeException("Pedido não encontrado"));
+        try {
+            String transacao = pagamentoGateway.processarPagamento(pedido);
 
-                pedido.setStatus(status);
+            pedido.setTransacaoGatewayId(transacao);
+            pedido.setStatus(StatusEnum.PAGO);
 
-                pedidoRepository.save(pedido);
-
-                auditoriaService.registrarLog(
-                        pedido.getCliente().getId(),
-                        "ALTERAR_STATUS",
-                        "pedido",
-                        pedido.getId(),
-                        status
+            for (ItemPedido item : pedido.getItens()) {
+                estoqueService.baixar(
+                        pedido.getUnidade().getId(),
+                        item.getProduto().getId(),
+                        item.getQuantidade()
                 );
+            }
+
+            if (pedido.getDescontoFidelidade() != null && pedido.getDescontoFidelidade() > 0) {
+                int pontos = (int) (pedido.getDescontoFidelidade() / 0.1);
+                fidelidadeService.debitarPontos(pedido.getCliente(), pontos);
+            }
+
+            int pontos = fidelidadeService.calcularPontos(pedido.getTotalFinal());
+            fidelidadeService.adicionarPontos(pedido.getCliente(), pontos);
+
+            pedidoRepository.save(pedido);
+
+            auditoriaService.registrarLog(
+                    pedido.getCliente().getId(),
+                    "PAGAR_PEDIDO",
+                    "pedido",
+                    pedido.getId(),
+                    pedido
+            );
+
+        } catch (Exception e) {
+            pedido.setStatus(StatusEnum.CRIADO);
+            pedidoRepository.save(pedido);
+            throw new RuntimeException("Falha no pagamento: " + e.getMessage());
         }
 
-        public PedidoResponseDTO toDTO(Pedido pedido) {
+        return toDTO(pedido);
+    }
 
-                return PedidoResponseDTO.builder()
-                        .id(pedido.getId())
-                        .status(pedido.getStatus().name())
-                        .totalFinal(pedido.getTotalFinal())
-                        .dataHora(pedido.getDataHora())
-                        .itens(
-                                pedido.getItens().stream().map(item ->
-                                        PedidoResponseDTO.ItemResponseDTO.builder()
-                                                .produtoNome(item.getProduto().getNome())
-                                                .quantidade(item.getQuantidade())
-                                                .preco(item.getPrecoAplicado())
-                                                .build()
-                                ).toList()
-                        )
-                        .build();
+    @Transactional
+    public void alterarStatus(Long id, StatusEnum status) {
+
+        Pedido pedido = pedidoRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Pedido não encontrado"));
+
+        validarTransicao(pedido.getStatus(), status);
+
+        pedido.setStatus(status);
+
+        pedidoRepository.save(pedido);
+
+        auditoriaService.registrarLog(
+                pedido.getCliente().getId(),
+                "ALTERAR_STATUS",
+                "pedido",
+                pedido.getId(),
+                status
+        );
+    }
+
+    private void validarTransicao(StatusEnum atual, StatusEnum novo) {
+
+        switch (atual) {
+            case CRIADO -> {
+                if (novo != StatusEnum.PAGO && novo != StatusEnum.CANCELADO)
+                    throw new RuntimeException("Transição inválida");
+            }
+            case PAGO -> {
+                if (novo != StatusEnum.EM_PREPARACAO && novo != StatusEnum.CANCELADO)
+                    throw new RuntimeException("Transição inválida");
+            }
+            case EM_PREPARACAO -> {
+                if (novo != StatusEnum.PRONTO)
+                    throw new RuntimeException("Transição inválida");
+            }
+            case PRONTO -> {
+                if (novo != StatusEnum.ENTREGUE)
+                    throw new RuntimeException("Transição inválida");
+            }
+            default -> throw new RuntimeException("Pedido não pode ser alterado");
         }
+    }
+
+    public PedidoResponseDTO toDTO(Pedido pedido) {
+        return PedidoResponseDTO.builder()
+                .id(pedido.getId())
+                .status(pedido.getStatus().name())
+                .totalFinal(pedido.getTotalFinal())
+                .dataHora(pedido.getDataHora())
+                .itens(
+                        pedido.getItens().stream().map(item ->
+                                PedidoResponseDTO.ItemResponseDTO.builder()
+                                        .produtoNome(item.getProduto().getNome())
+                                        .quantidade(item.getQuantidade())
+                                        .preco(item.getPrecoAplicado())
+                                        .build()
+                        ).toList()
+                )
+                .build();
+    }
 }

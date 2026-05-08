@@ -1,5 +1,6 @@
 package com.raizesdonordeste.config;
 
+import com.raizesdonordeste.security.JwtAuthenticationFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -8,8 +9,6 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-
-import com.raizesdonordeste.security.JwtAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -38,13 +37,13 @@ public class SecurityConfig {
                                 "/swagger-ui.html"
                         ).permitAll()
 
-                    .requestMatchers("/auth/**").permitAll()
-                    .requestMatchers(HttpMethod.POST, "/usuarios").permitAll()
-                    .requestMatchers("/error").permitAll()
+                        .requestMatchers("/auth/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/usuarios").permitAll()
+                        .requestMatchers("/error").permitAll()
 
-                    .requestMatchers("/auditoria/**").hasRole("ADMIN")
+                        .requestMatchers("/auditoria/**").hasRole("ADMIN")
 
-                    .anyRequest().authenticated()
+                        .anyRequest().authenticated()
                 )
 
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)

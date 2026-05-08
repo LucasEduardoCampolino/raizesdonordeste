@@ -18,11 +18,11 @@ public class AuditoriaService {
     private final ObjectMapper objectMapper;
 
     public void registrarLog(
-        Long usuarioId,
-        String acao,
-        String tabela,
-        Long registroId,
-        Object detalhes
+            Long usuarioId,
+            String acao,
+            String tabela,
+            Long registroId,
+            Object detalhes
     ) {
 
         if (usuarioId == null) {
