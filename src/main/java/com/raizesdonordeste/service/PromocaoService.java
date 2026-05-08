@@ -1,6 +1,5 @@
 package com.raizesdonordeste.service;
 
-import com.raizesdonordeste.model.entity.Pedido;
 import com.raizesdonordeste.model.entity.Promocao;
 import com.raizesdonordeste.model.entity.Unidade;
 import com.raizesdonordeste.repository.PromocaoRepository;
@@ -28,18 +27,6 @@ public class PromocaoService {
         );
     }
 
-    public void aplicarDescontoSazonal(Pedido pedido) {
-
-        double total = pedido.getItens().stream()
-                .mapToDouble(i -> i.getPrecoAplicado() * i.getQuantidade())
-                .sum();
-
-        double totalComDesconto = aplicarDesconto(pedido.getUnidade(), total);
-
-        pedido.setTotalBruto(total);
-        pedido.setTotalFinal(totalComDesconto);
-    }
-
     public double aplicarDesconto(Unidade unidade, double totalBruto) {
 
         List<Promocao> promocoes = buscarPromocoesAtivas(unidade);
@@ -48,9 +35,11 @@ public class PromocaoService {
             return totalBruto;
         }
 
-        Promocao promo = promocoes.get(0);
+        double descontoTotal = promocoes.stream()
+                .mapToDouble(Promocao::getValorPromocional)
+                .sum();
 
-        double totalComDesconto = totalBruto - promo.getValorPromocional();
+        double totalComDesconto = totalBruto - descontoTotal;
 
         return Math.max(totalComDesconto, 0);
     }

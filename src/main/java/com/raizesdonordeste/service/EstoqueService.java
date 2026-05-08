@@ -53,9 +53,7 @@ public class EstoqueService {
 
         estoque.setQuantidade(estoque.getQuantidade() + quantidade);
 
-        Estoque salvo = repository.save(estoque);
-
-        return salvo;
+        return repository.save(estoque);
     }
 
     @Transactional
@@ -70,9 +68,5 @@ public class EstoqueService {
         estoque.setQuantidade(estoque.getQuantidade() - quantidade);
 
         repository.save(estoque);
-        
-        Estoque salvo = repository.save(estoque);
-
-        return;
     }
 }

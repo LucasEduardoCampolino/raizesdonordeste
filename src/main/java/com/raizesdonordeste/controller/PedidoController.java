@@ -2,15 +2,16 @@ package com.raizesdonordeste.controller;
 
 import com.raizesdonordeste.dto.PedidoDTO;
 import com.raizesdonordeste.dto.PedidoResponseDTO;
+import com.raizesdonordeste.model.enums.CanalEnum;
 import com.raizesdonordeste.model.enums.StatusEnum;
 import com.raizesdonordeste.service.PedidoService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.validation.Valid;
 import java.util.List;
 
 @RestController
@@ -35,6 +36,16 @@ public class PedidoController {
     @PreAuthorize("hasRole('CLIENTE')")
     public ResponseEntity<PedidoResponseDTO> pagar(@PathVariable Long id) {
         return ResponseEntity.ok(service.processarPagamento(id));
+    }
+
+    @GetMapping
+    public ResponseEntity<List<PedidoResponseDTO>> listar(
+            @RequestParam(required = false) CanalEnum canalPedido
+    ) {
+        if (canalPedido != null) {
+            return ResponseEntity.ok(service.buscarPorCanal(canalPedido));
+        }
+        return ResponseEntity.ok(service.filaCozinha());
     }
 
     @PutMapping("/{id}/preparar")
