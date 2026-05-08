@@ -6,7 +6,6 @@ import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
@@ -33,6 +32,11 @@ public class SecurityConfig {
                 ))
 
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(
+                                "/swagger-ui/**",
+                                "/v3/api-docs/**",
+                                "/swagger-ui.html"
+                        ).permitAll()
 
                     .requestMatchers("/auth/**").permitAll()
                     .requestMatchers(HttpMethod.POST, "/usuarios").permitAll()

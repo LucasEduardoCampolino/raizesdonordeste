@@ -22,8 +22,8 @@ public class PromocaoController {
     public ResponseEntity<PromocaoDTO> criar(@RequestBody PromocaoDTO dto) {
 
         Promocao promocao = new Promocao();
-        promocao.setNomeEvento(dto.getNomeEvento());
-        promocao.setValorPromocional(dto.getValorPromocional());
+        promocao.setNomeEvento(dto.getNome());
+        promocao.setValorPromocional(dto.getDesconto());
         promocao.setDataInicio(dto.getDataInicio());
         promocao.setDataFim(dto.getDataFim());
         promocao.setAtivo(dto.getAtivo());
@@ -48,8 +48,8 @@ public class PromocaoController {
 
                     PromocaoDTO dto = new PromocaoDTO();
                     dto.setId(p.getId());
-                    dto.setNomeEvento(p.getNomeEvento());
-                    dto.setValorPromocional(p.getValorPromocional());
+                    dto.setNome(p.getNomeEvento());
+                    dto.setDesconto(p.getValorPromocional());
                     dto.setDataInicio(p.getDataInicio());
                     dto.setDataFim(p.getDataFim());
                     dto.setAtivo(p.getAtivo());
