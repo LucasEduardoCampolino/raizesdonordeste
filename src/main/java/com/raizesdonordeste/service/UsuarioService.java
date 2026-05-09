@@ -7,6 +7,8 @@ import com.raizesdonordeste.model.enums.PerfilEnum;
 import com.raizesdonordeste.repository.UsuarioRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import com.raizesdonordeste.exception.BusinessException;
+import com.raizesdonordeste.exception.NotFoundException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,7 +27,11 @@ public class UsuarioService {
     public Usuario criar(UsuarioDTO dto) {
 
         if (repository.findByEmail(dto.getEmail()).isPresent()) {
-            throw new RuntimeException("Email já cadastrado");
+            throw new BusinessException("Email já cadastrado");
+        }
+
+        if (dto.getAceitouLgpd() == null || !dto.getAceitouLgpd()) {
+            throw new BusinessException("É obrigatório aceitar os termos da LGPD");
         }
 
         Usuario usuario = Usuario.builder()
@@ -33,6 +39,7 @@ public class UsuarioService {
                 .email(dto.getEmail())
                 .senha(encoder.encode(dto.getSenha()))
                 .saldoPontos(0)
+                .aceitouLgpd(dto.getAceitouLgpd())
                 .dataConsentimentoLGPD(LocalDateTime.now())
                 .perfil(PerfilEnum.CLIENTE)
                 .build();
@@ -46,12 +53,17 @@ public class UsuarioService {
             throw new RuntimeException("Email já cadastrado");
         }
 
+        if (dto.getAceitouLgpd() == null || !dto.getAceitouLgpd()) {
+            throw new RuntimeException("É obrigatório aceitar os termos da LGPD");
+        }
+
         return repository.save(
                 Usuario.builder()
                         .nome(dto.getNome())
                         .email(dto.getEmail())
                         .senha(encoder.encode(dto.getSenha()))
                         .saldoPontos(0)
+                        .aceitouLgpd(dto.getAceitouLgpd())
                         .dataConsentimentoLGPD(LocalDateTime.now())
                         .perfil(perfil)
                         .build()
@@ -64,7 +76,7 @@ public class UsuarioService {
 
     public Usuario buscarPorId(Long id) {
         return repository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuário não encontrado"));
+                .orElseThrow(() -> new NotFoundException("Usuário não encontrado"));
     }
 
     public Usuario atualizar(Long id, UsuarioDTO dto) {

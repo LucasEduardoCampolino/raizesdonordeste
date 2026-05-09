@@ -3,6 +3,7 @@ package com.raizesdonordeste.service;
 import com.raizesdonordeste.model.entity.Usuario;
 import com.raizesdonordeste.repository.UsuarioRepository;
 import org.springframework.stereotype.Service;
+import com.raizesdonordeste.exception.BusinessException;
 
 @Service
 public class FidelidadeService {
@@ -25,7 +26,7 @@ public class FidelidadeService {
     public double calcularDesconto(int pontos) {
 
         if (pontos < 0) {
-            throw new RuntimeException("Pontos inválidos");
+            throw new BusinessException("Pontos inválidos");
         }
 
         return pontos * 0.1;
@@ -34,11 +35,11 @@ public class FidelidadeService {
     public void validarResgate(Usuario usuario, int pontos) {
 
         if (pontos <= 0) {
-            throw new RuntimeException("Quantidade de pontos inválida");
+            throw new BusinessException("Quantidade de pontos inválida");
         }
 
         if (usuario.getSaldoPontos() == null || usuario.getSaldoPontos() < pontos) {
-            throw new RuntimeException("Pontos insuficientes");
+            throw new BusinessException("Pontos insuficientes");
         }
     }
 

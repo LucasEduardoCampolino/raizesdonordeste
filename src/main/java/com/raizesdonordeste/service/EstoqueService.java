@@ -1,72 +1,78 @@
 package com.raizesdonordeste.service;
 
+import com.raizesdonordeste.dto.EstoqueDTO;
 import com.raizesdonordeste.model.entity.Estoque;
-import com.raizesdonordeste.model.entity.Produto;
-import com.raizesdonordeste.model.entity.Unidade;
 import com.raizesdonordeste.repository.EstoqueRepository;
 import com.raizesdonordeste.repository.ProdutoRepository;
 import com.raizesdonordeste.repository.UnidadeRepository;
-import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.raizesdonordeste.exception.BusinessException;
+import com.raizesdonordeste.exception.NotFoundException;
 
 @Service
+@RequiredArgsConstructor
 public class EstoqueService {
 
     private final EstoqueRepository repository;
     private final UnidadeRepository unidadeRepository;
     private final ProdutoRepository produtoRepository;
 
-    public EstoqueService(
-            EstoqueRepository repository,
-            UnidadeRepository unidadeRepository,
-            ProdutoRepository produtoRepository
-    ) {
-        this.repository = repository;
-        this.unidadeRepository = unidadeRepository;
-        this.produtoRepository = produtoRepository;
-    }
-
-    public Estoque buscar(Long unidadeId, Long produtoId) {
-        return repository.findByUnidadeIdAndProdutoId(unidadeId, produtoId)
-                .orElseThrow(() -> new RuntimeException("Estoque não encontrado"));
-    }
-
-    @Transactional
-    public Estoque adicionar(Long unidadeId, Long produtoId, int quantidade) {
-
-        Estoque estoque = repository.findByUnidadeIdAndProdutoId(unidadeId, produtoId)
+    public EstoqueDTO adicionar(EstoqueDTO dto) {
+        Estoque estoque = repository
+                .findByUnidadeIdAndProdutoId(dto.getUnidadeId(), dto.getProdutoId())
                 .orElse(null);
 
         if (estoque == null) {
-            Unidade unidade = unidadeRepository.findById(unidadeId)
-                    .orElseThrow(() -> new RuntimeException("Unidade não encontrada"));
+            estoque = new Estoque();
 
-            Produto produto = produtoRepository.findById(produtoId)
-                    .orElseThrow(() -> new RuntimeException("Produto não encontrado"));
+            estoque.setUnidade(
+                    unidadeRepository.findById(dto.getUnidadeId())
+                            .orElseThrow(() -> new NotFoundException("Unidade não encontrada"))
+            );
 
-            estoque = Estoque.builder()
-                    .unidade(unidade)
-                    .produto(produto)
-                    .quantidade(0)
-                    .build();
+            estoque.setProduto(
+                    produtoRepository.findById(dto.getProdutoId())
+                            .orElseThrow(() -> new NotFoundException("Produto não encontrado"))
+            );
+
+            estoque.setQuantidade(0);
         }
 
-        estoque.setQuantidade(estoque.getQuantidade() + quantidade);
+        estoque.setQuantidade(estoque.getQuantidade() + dto.getQuantidade());
 
-        return repository.save(estoque);
+        return toDTO(repository.save(estoque));
     }
 
-    @Transactional
-    public void baixar(Long unidadeId, Long produtoId, int quantidade) {
+    public void baixar(EstoqueDTO dto) {
+        Estoque estoque = repository
+                .findByUnidadeIdAndProdutoId(dto.getUnidadeId(), dto.getProdutoId())
+                .orElseThrow(() -> new NotFoundException("Estoque não encontrado"));
 
-        Estoque estoque = buscar(unidadeId, produtoId);
-
-        if (estoque.getQuantidade() < quantidade) {
-            throw new RuntimeException("Estoque insuficiente");
+        if (estoque.getQuantidade() < dto.getQuantidade()) {
+            throw new BusinessException("Estoque insuficiente");
         }
 
-        estoque.setQuantidade(estoque.getQuantidade() - quantidade);
+        estoque.setQuantidade(estoque.getQuantidade() - dto.getQuantidade());
 
         repository.save(estoque);
+    }
+
+    public EstoqueDTO buscar(Long unidadeId, Long produtoId) {
+        Estoque estoque = repository
+                .findByUnidadeIdAndProdutoId(unidadeId, produtoId)
+                .orElseThrow(() -> new NotFoundException("Estoque não encontrado"));
+
+        return toDTO(estoque);
+    }
+
+    private EstoqueDTO toDTO(Estoque e) {
+        EstoqueDTO dto = new EstoqueDTO();
+
+        dto.setUnidadeId(e.getUnidade().getId());
+        dto.setProdutoId(e.getProduto().getId());
+        dto.setQuantidade(e.getQuantidade());
+
+        return dto;
     }
 }

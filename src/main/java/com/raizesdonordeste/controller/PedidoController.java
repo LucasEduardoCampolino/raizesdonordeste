@@ -39,6 +39,7 @@ public class PedidoController {
     }
 
     @GetMapping
+    @PreAuthorize("hasAnyRole('ATENDENTE','GERENTE','ADMIN')")
     public ResponseEntity<List<PedidoResponseDTO>> listar(
             @RequestParam(required = false) CanalEnum canalPedido
     ) {
@@ -49,30 +50,35 @@ public class PedidoController {
     }
 
     @PutMapping("/{id}/preparar")
+    @PreAuthorize("hasAnyRole('ATENDENTE','GERENTE')")
     public ResponseEntity<Void> iniciarPreparo(@PathVariable Long id) {
         service.alterarStatus(id, StatusEnum.EM_PREPARACAO);
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{id}/pronto")
+    @PreAuthorize("hasAnyRole('ATENDENTE','GERENTE')")
     public ResponseEntity<Void> marcarPronto(@PathVariable Long id) {
         service.alterarStatus(id, StatusEnum.PRONTO);
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{id}/entregar")
+    @PreAuthorize("hasAnyRole('ATENDENTE','GERENTE')")
     public ResponseEntity<Void> entregar(@PathVariable Long id) {
         service.alterarStatus(id, StatusEnum.ENTREGUE);
         return ResponseEntity.ok().build();
     }
 
     @PutMapping("/{id}/cancelar")
+    @PreAuthorize("hasAnyRole('GERENTE','ADMIN')")
     public ResponseEntity<Void> cancelar(@PathVariable Long id) {
         service.alterarStatus(id, StatusEnum.CANCELADO);
         return ResponseEntity.ok().build();
     }
 
     @GetMapping("/fila-cozinha")
+    @PreAuthorize("hasAnyRole('ATENDENTE','GERENTE','ADMIN')")
     public ResponseEntity<List<PedidoResponseDTO>> fila() {
         return ResponseEntity.ok(service.filaCozinha());
     }

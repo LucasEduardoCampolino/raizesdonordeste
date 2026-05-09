@@ -34,6 +34,7 @@ public class Usuario implements UserDetails {
 
     private Integer saldoPontos;
 
+    private Boolean aceitouLgpd;
     private LocalDateTime dataConsentimentoLGPD;
 
     @Enumerated(EnumType.STRING)

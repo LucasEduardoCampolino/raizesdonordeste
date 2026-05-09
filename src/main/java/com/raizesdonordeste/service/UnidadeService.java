@@ -1,5 +1,7 @@
 package com.raizesdonordeste.service;
 
+import com.raizesdonordeste.dto.UnidadeDTO;
+import com.raizesdonordeste.dto.UnidadeResponseDTO;
 import com.raizesdonordeste.model.entity.Unidade;
 import com.raizesdonordeste.repository.UnidadeRepository;
 import org.springframework.stereotype.Service;
@@ -15,11 +17,32 @@ public class UnidadeService {
         this.repository = repository;
     }
 
-    public Unidade salvar(Unidade unidade) {
-        return repository.save(unidade);
+    public UnidadeResponseDTO salvar(UnidadeDTO dto) {
+
+        Unidade unidade = Unidade.builder()
+                .nomeFantasia(dto.getNomeFantasia())
+                .cnpj(dto.getCnpj())
+                .endereco(dto.getEndereco())
+                .ativo(dto.getAtivo())
+                .build();
+
+        return toDTO(repository.save(unidade));
     }
 
-    public List<Unidade> listar() {
-        return repository.findAll();
+    public List<UnidadeResponseDTO> listar() {
+        return repository.findAll()
+                .stream()
+                .map(this::toDTO)
+                .toList();
+    }
+
+    private UnidadeResponseDTO toDTO(Unidade u) {
+        return UnidadeResponseDTO.builder()
+                .id(u.getId())
+                .nomeFantasia(u.getNomeFantasia())
+                .cnpj(u.getCnpj())
+                .endereco(u.getEndereco())
+                .ativo(u.getAtivo())
+                .build();
     }
 }
