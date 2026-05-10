@@ -1,5 +1,6 @@
 package com.raizesdonordeste.dto;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -14,7 +15,7 @@ public class PedidoDTO {
     private Long unidadeId;
 
     @NotEmpty(message = "O pedido deve ter pelo menos um item")
-    private List<ItemDTO> itens;
+    private List<@Valid ItemDTO> itens;
 
     @NotBlank(message = "Canal de origem é obrigatório")
     private String canalOrigem;

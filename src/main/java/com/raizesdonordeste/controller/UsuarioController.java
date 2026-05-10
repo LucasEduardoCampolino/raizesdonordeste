@@ -4,6 +4,7 @@ import com.raizesdonordeste.dto.UsuarioDTO;
 import com.raizesdonordeste.dto.UsuarioResponseDTO;
 import com.raizesdonordeste.model.enums.PerfilEnum;
 import com.raizesdonordeste.service.UsuarioService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -21,19 +22,28 @@ public class UsuarioController {
     }
 
     @PostMapping
-    public ResponseEntity<UsuarioResponseDTO> criar(@RequestBody UsuarioDTO dto) {
+    public ResponseEntity<UsuarioResponseDTO> criar(@Valid @RequestBody UsuarioDTO dto) {
         return ResponseEntity.ok(service.toDTO(service.criar(dto)));
     }
 
     @PostMapping("/admin")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UsuarioResponseDTO> criarAdmin(
-            @RequestBody UsuarioDTO dto,
+            @Valid @RequestBody UsuarioDTO dto,
             @RequestParam PerfilEnum perfil
     ) {
         return ResponseEntity.ok(
                 service.toDTO(service.criarComPerfil(dto, perfil))
         );
+    }
+
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UsuarioResponseDTO> atualizar(
+            @PathVariable Long id,
+            @Valid @RequestBody UsuarioDTO dto
+    ) {
+        return ResponseEntity.ok(service.toDTO(service.atualizar(id, dto)));
     }
 
     @GetMapping
@@ -48,15 +58,6 @@ public class UsuarioController {
     @PreAuthorize("hasAnyRole('GERENTE','ADMIN') or authentication.name != null")
     public ResponseEntity<UsuarioResponseDTO> buscar(@PathVariable Long id) {
         return ResponseEntity.ok(service.toDTO(service.buscarPorId(id)));
-    }
-
-    @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UsuarioResponseDTO> atualizar(
-            @PathVariable Long id,
-            @RequestBody UsuarioDTO dto
-    ) {
-        return ResponseEntity.ok(service.toDTO(service.atualizar(id, dto)));
     }
 
     @PutMapping("/{id}/perfil")

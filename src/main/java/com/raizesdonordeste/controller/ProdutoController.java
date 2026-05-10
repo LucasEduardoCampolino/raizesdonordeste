@@ -1,8 +1,11 @@
 package com.raizesdonordeste.controller;
 
-import com.raizesdonordeste.model.entity.Produto;
+import com.raizesdonordeste.dto.ProdutoDTO;
+import com.raizesdonordeste.dto.ProdutoResponseDTO;
 import com.raizesdonordeste.service.ProdutoService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,12 +21,14 @@ public class ProdutoController {
     }
 
     @PostMapping
-    public ResponseEntity<Produto> criar(@RequestBody Produto produto) {
-        return ResponseEntity.ok(service.salvar(produto));
+    @PreAuthorize("hasAnyRole('GERENTE','ADMIN')")
+    public ResponseEntity<ProdutoResponseDTO> criar(@Valid @RequestBody ProdutoDTO dto) {
+        return ResponseEntity.ok(service.salvar(dto));
     }
 
     @GetMapping
-    public ResponseEntity<List<Produto>> listar() {
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<ProdutoResponseDTO>> listar() {
         return ResponseEntity.ok(service.listar());
     }
 }

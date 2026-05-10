@@ -1,8 +1,11 @@
 package com.raizesdonordeste.controller;
 
-import com.raizesdonordeste.model.entity.Categoria;
+import com.raizesdonordeste.dto.CategoriaDTO;
+import com.raizesdonordeste.dto.CategoriaResponseDTO;
 import com.raizesdonordeste.service.CategoriaService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,13 +21,14 @@ public class CategoriaController {
     }
 
     @PostMapping
-    public ResponseEntity<Categoria> criar(@RequestBody Categoria categoria) {
-        return ResponseEntity.ok(service.salvar(categoria));
+    @PreAuthorize("hasAnyRole('GERENTE','ADMIN')")
+    public ResponseEntity<CategoriaResponseDTO> criar(@Valid @RequestBody CategoriaDTO dto) {
+        return ResponseEntity.ok(service.salvar(dto));
     }
 
     @GetMapping
-    public ResponseEntity<List<Categoria>> listar() {
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<CategoriaResponseDTO>> listar() {
         return ResponseEntity.ok(service.listar());
     }
-
 }

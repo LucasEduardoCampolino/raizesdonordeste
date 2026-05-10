@@ -1,5 +1,6 @@
 package com.raizesdonordeste.service;
 
+import com.raizesdonordeste.dto.EstoqueDTO;
 import com.raizesdonordeste.dto.ItemDTO;
 import com.raizesdonordeste.dto.PedidoDTO;
 import com.raizesdonordeste.dto.PedidoResponseDTO;
@@ -14,6 +15,8 @@ import com.raizesdonordeste.repository.UsuarioRepository;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import com.raizesdonordeste.exception.BusinessException;
+import com.raizesdonordeste.exception.NotFoundException;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -51,10 +54,10 @@ public class PedidoService {
     public PedidoResponseDTO processarCheckout(PedidoDTO dto, String emailCliente) {
 
         Usuario cliente = usuarioRepository.findByEmail(emailCliente)
-                .orElseThrow(() -> new RuntimeException("Cliente não encontrado"));
+                .orElseThrow(() -> new NotFoundException("Cliente não encontrado"));
 
         Unidade unidade = unidadeRepository.findById(dto.getUnidadeId())
-                .orElseThrow(() -> new RuntimeException("Unidade não encontrada"));
+                .orElseThrow(() -> new NotFoundException("Unidade não encontrada"));
 
         Pedido pedido = new Pedido();
         pedido.setCliente(cliente);
@@ -68,7 +71,7 @@ public class PedidoService {
         for (ItemDTO itemDTO : dto.getItens()) {
 
             Produto produto = produtoRepository.findById(itemDTO.getProdutoId())
-                    .orElseThrow(() -> new RuntimeException("Produto não encontrado"));
+                    .orElseThrow(() -> new NotFoundException("Produto não encontrado"));
 
             estoqueService.buscar(unidade.getId(), produto.getId());
 
@@ -121,14 +124,14 @@ public class PedidoService {
     public PedidoResponseDTO processarPagamento(Long id) {
 
         Pedido pedido = pedidoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Pedido não encontrado"));
+                .orElseThrow(() -> new NotFoundException("Pedido não encontrado"));
 
         if (pedido.getStatus() != StatusEnum.CRIADO) {
-            throw new RuntimeException("Pedido não pode ser pago");
+            throw new BusinessException("Pedido não pode ser pago");
         }
 
         if (pedido.getTransacaoGatewayId() != null) {
-            throw new RuntimeException("Pedido já foi pago");
+            throw new BusinessException("Pedido já foi pago");
         }
 
         try {
@@ -138,11 +141,13 @@ public class PedidoService {
             pedido.setStatus(StatusEnum.PAGO);
 
             for (ItemPedido item : pedido.getItens()) {
-                estoqueService.baixar(
-                        pedido.getUnidade().getId(),
-                        item.getProduto().getId(),
-                        item.getQuantidade()
-                );
+
+                EstoqueDTO estoqueDTO = new EstoqueDTO();
+                estoqueDTO.setUnidadeId(pedido.getUnidade().getId());
+                estoqueDTO.setProdutoId(item.getProduto().getId());
+                estoqueDTO.setQuantidade(item.getQuantidade());
+
+                estoqueService.baixar(estoqueDTO);
             }
 
             if (pedido.getDescontoFidelidade() != null && pedido.getDescontoFidelidade() > 0) {
@@ -166,7 +171,7 @@ public class PedidoService {
         } catch (Exception e) {
             pedido.setStatus(StatusEnum.CRIADO);
             pedidoRepository.save(pedido);
-            throw new RuntimeException("Falha no pagamento: " + e.getMessage());
+            throw new BusinessException("Falha no pagamento");
         }
 
         return toDTO(pedido);
@@ -176,7 +181,7 @@ public class PedidoService {
     public void alterarStatus(Long id, StatusEnum status) {
 
         Pedido pedido = pedidoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Pedido não encontrado"));
+                .orElseThrow(() -> new NotFoundException("Pedido não encontrado"));
 
         validarTransicao(pedido.getStatus(), status);
 

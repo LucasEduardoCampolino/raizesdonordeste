@@ -1,8 +1,11 @@
 package com.raizesdonordeste.controller;
 
-import com.raizesdonordeste.model.entity.Unidade;
+import com.raizesdonordeste.dto.UnidadeDTO;
+import com.raizesdonordeste.dto.UnidadeResponseDTO;
 import com.raizesdonordeste.service.UnidadeService;
+import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -18,12 +21,14 @@ public class UnidadeController {
     }
 
     @PostMapping
-    public ResponseEntity<Unidade> criar(@RequestBody Unidade unidade) {
-        return ResponseEntity.ok(service.salvar(unidade));
+    @PreAuthorize("hasAnyRole('GERENTE','ADMIN')")
+    public ResponseEntity<UnidadeResponseDTO> criar(@Valid @RequestBody UnidadeDTO dto) {
+        return ResponseEntity.ok(service.salvar(dto));
     }
 
     @GetMapping
-    public ResponseEntity<List<Unidade>> listar() {
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<List<UnidadeResponseDTO>> listar() {
         return ResponseEntity.ok(service.listar());
     }
 }

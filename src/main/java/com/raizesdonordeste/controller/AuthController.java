@@ -2,6 +2,7 @@ package com.raizesdonordeste.controller;
 
 import com.raizesdonordeste.dto.LoginDTO;
 import com.raizesdonordeste.security.JwtService;
+import jakarta.validation.Valid;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -22,7 +23,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public String login(@RequestBody LoginDTO dto) {
+    public String login(@Valid @RequestBody LoginDTO dto) {
 
         authManager.authenticate(
                 new UsernamePasswordAuthenticationToken(dto.getEmail(), dto.getSenha())
