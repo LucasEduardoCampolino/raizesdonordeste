@@ -32,6 +32,7 @@ SERVER_PORT=8080
 <ol>
   <li>git clone https://github.com/LucasEduardoCampolino/raizesdonordeste.git</li>
   Na raíz do projeto:
+  <li>Crie o arquivo .env e adicione o código como no exemplo acima</li>
   <li>docker compose up --build -d</li>
 </ol>
 
