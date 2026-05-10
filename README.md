@@ -33,7 +33,6 @@ SERVER_PORT=8080
   <li>git clone https://github.com/LucasEduardoCampolino/raizesdonordeste.git</li>
   Na raíz do projeto:
   <li>docker compose up --build -d</li>
-  <li></li>
 </ol>
 
 <h2>Documentação da API (Swagger/OpenAPI)</h2>
