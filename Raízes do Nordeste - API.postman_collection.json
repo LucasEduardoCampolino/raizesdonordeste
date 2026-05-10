@@ -1,11 +1,9 @@
 {
   "info": {
-    "_postman_id": "175d3a4d-ab22-4cc2-ac70-f6748e4e94ea",
+    "_postman_id": "be1541bb-b858-4b57-87a0-2d0b77deae59",
     "name": "Raízes do Nordeste - API",
     "description": "Collection completa para testes de integração do sistema de pedidos, estoque e fidelidade.",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_exporter_id": "47482598",
-    "_collection_link": "https://go.postman.co/collection/47482598-175d3a4d-ab22-4cc2-ac70-f6748e4e94ea?source=collection_link"
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
     {
@@ -26,10 +24,13 @@
               }
             },
             "url": {
-              "raw": ""
+              "raw": "http://localhost:8080/usuarios",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["usuarios"]
             }
-          },
-          "response": []
+          }
         },
         {
           "name": "Login (Gerar Token)",
@@ -57,10 +58,13 @@
               }
             },
             "url": {
-              "raw": ""
+              "raw": "http://localhost:8080/auth/login",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["auth", "login"]
             }
-          },
-          "response": []
+          }
         }
       ]
     },
@@ -92,10 +96,13 @@
               }
             },
             "url": {
-              "raw": ""
+              "raw": "http://localhost:8080/unidades",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["unidades"]
             }
-          },
-          "response": []
+          }
         },
         {
           "name": "Criar Produto",
@@ -122,10 +129,13 @@
               }
             },
             "url": {
-              "raw": ""
+              "raw": "http://localhost:8080/produtos",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["produtos"]
             }
-          },
-          "response": []
+          }
         }
       ]
     },
@@ -157,10 +167,13 @@
               }
             },
             "url": {
-              "raw": ""
+              "raw": "http://localhost:8080/estoque/entrada",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["estoque", "entrada"]
             }
-          },
-          "response": []
+          }
         }
       ]
     },
@@ -192,10 +205,13 @@
               }
             },
             "url": {
-              "raw": ""
+              "raw": "http://localhost:8080/pedidos",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["pedidos"]
             }
-          },
-          "response": []
+          }
         },
         {
           "name": "Pagar Pedido",
@@ -213,10 +229,13 @@
             "method": "POST",
             "header": [],
             "url": {
-              "raw": ""
+              "raw": "http://localhost:8080/pedidos/1/pagar",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["pedidos", "1", "pagar"]
             }
-          },
-          "response": []
+          }
         },
         {
           "name": "Fila da Cozinha",
@@ -234,10 +253,13 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": ""
+              "raw": "http://localhost:8080/pedidos/fila-cozinha",
+              "protocol": "http",
+              "host": ["localhost"],
+              "port": "8080",
+              "path": ["pedidos", "fila-cozinha"]
             }
-          },
-          "response": []
+          }
         }
       ]
     }
